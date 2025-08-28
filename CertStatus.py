@@ -46,13 +46,13 @@ df_latest['Days Until Expiration'] = (df_latest['Due Date'] - today).dt.days
 
 # Expiration status codes: 0=Not Expired, 1=Near, 2=Almost, 3=Expired, 4=Expired over a week
 def expiration_code(days):
-    if days < -7:
+    if days < -6:
         return 4
-    elif days < 0:
+    elif days < 2:
         return 3
-    elif days < 7:
+    elif days < 16:
         return 2
-    elif days < 15:
+    elif days < 31:
         return 1
     else:
         return 0
@@ -133,13 +133,19 @@ if not status_changed.empty:
 
         wb = load_workbook(EXLFile)
         ws = wb['A3 Certificates']
-        for _, row in status_changed.iterrows():
-            excel_row = int(row['ID'])
-            new_notification = int(row['Updated Notification'])
-            ws.cell(row=excel_row, column=2).value = new_notification
-        wb.save(EXLFile) 
 
-        print("Email sent with updated certificate statuses.")
+        for idx, row in status_changed.iterrows():
+            excel_row = idx + 2  # offset
+            new_notification = int(row['Updated Notification'])
+            ws.cell(row=excel_row, column=1).value = new_notification
+        try:
+            temp_file = Path(str(EXLFile) + ".tmp")
+            wb.save(temp_file)                 # write safely to temp
+            temp_file.replace(EXLFile)         # atomic replace
+            logging.info(f"Excel file updated successfully: {EXLFile}")
+        except Exception as e:
+            logging.error(f"Failed to save Excel file safely: {e}")
+            raise 
         
     except Exception as e:
         logging.error(f"Failed to send email or update file: {str(e)}")
